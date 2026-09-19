@@ -323,6 +323,20 @@ footer {
         >
 
         <label>
+            每格單位：
+            <input
+                type="number"
+                id="gridUnit"
+                value="1"
+                min="0.0001"
+                step="any"
+                style="width:75px"
+                onchange="drawScene()"
+                oninput="drawScene()"
+            >
+        </label>
+
+        <label>
             模型：
             <select id="modelSelect">
                 <option value="auto">🤖 自動選擇</option>
@@ -474,7 +488,6 @@ footer {
     Interactive Curve Fitting Tool · HTML5 Canvas + JavaScript
 </footer>
 
-
 <script>
 
 /* =========================================================
@@ -494,12 +507,14 @@ let currentStroke = [];
 
 let fittedModel = null;
 
+function getGridUnit() {
+    const val = parseFloat(document.getElementById("gridUnit").value);
+    return (isNaN(val) || val <= 0) ? 1 : val;
+}
+
 function resizeCanvas() {
 
     const rect = canvas.getBoundingClientRect();
-
-    const oldWidth = canvas.width;
-    const oldHeight = canvas.height;
 
     canvas.width = rect.width * devicePixelRatio;
     canvas.height = rect.height * devicePixelRatio;
@@ -523,72 +538,128 @@ function resizeCanvas() {
 window.addEventListener("resize", resizeCanvas);
 
 
+
 /* =========================================================
-   座標系
+   座標系 (精確對齊座標原點與自訂單位刻度)
 ========================================================= */
 
 function drawAxes() {
 
     ctx.save();
 
+    const grid = 50; // 固定畫布每格 50px
+    const unit = getGridUnit();
+
+    const axisX = width / 2;
+    const axisY = height / 2;
+
+    // 1. 背景網格 (從原點向四個方向繪製，確保 0,0 對齊)
+    ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = 1;
 
-    // 網格
-
-    ctx.strokeStyle = "#e2e8f0";
-
-    const grid = 50;
-
-    for (let x = 0; x <= width; x += grid) {
-
-        ctx.beginPath();
+    // 垂直網格線 (X 軸方向)
+    ctx.beginPath();
+    for (let x = axisX; x <= width; x += grid) {
         ctx.moveTo(x, 0);
         ctx.lineTo(x, height);
-        ctx.stroke();
-
+    }
+    for (let x = axisX - grid; x >= 0; x -= grid) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
     }
 
-    for (let y = 0; y <= height; y += grid) {
-
-        ctx.beginPath();
+    // 水平網格線 (Y 軸方向)
+    for (let y = axisY; y <= height; y += grid) {
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
-        ctx.stroke();
-
     }
+    for (let y = axisY - grid; y >= 0; y -= grid) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+    }
+    ctx.stroke();
 
-    // X軸
-
+    // 2. 座標主軸
     ctx.strokeStyle = "#64748b";
     ctx.lineWidth = 2;
 
-    const axisY = height / 2;
-
+    // X軸
     ctx.beginPath();
     ctx.moveTo(0, axisY);
     ctx.lineTo(width, axisY);
     ctx.stroke();
 
     // Y軸
-
-    const axisX = width / 2;
-
     ctx.beginPath();
     ctx.moveTo(axisX, 0);
     ctx.lineTo(axisX, height);
     ctx.stroke();
 
-    // 標籤
-
+    // 3. 刻度與標籤
     ctx.fillStyle = "#475569";
-    ctx.font = "13px Arial";
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
 
-    ctx.fillText("x", width - 18, axisY - 8);
-    ctx.fillText("y", axisX + 8, 18);
+    // X 軸刻度數字
+    let stepCount = 1;
+    for (let x = axisX + grid; x < width - 20; x += grid) {
+        const val = Number((stepCount * unit).toPrecision(6));
+        ctx.beginPath();
+        ctx.moveTo(x, axisY);
+        ctx.lineTo(x, axisY + 4);
+        ctx.stroke();
+        ctx.fillText(val, x, axisY + 6);
+        stepCount++;
+    }
+
+    stepCount = 1;
+    for (let x = axisX - grid; x > 20; x -= grid) {
+        const val = Number((-stepCount * unit).toPrecision(6));
+        ctx.beginPath();
+        ctx.moveTo(x, axisY);
+        ctx.lineTo(x, axisY + 4);
+        ctx.stroke();
+        ctx.fillText(val, x, axisY + 6);
+        stepCount++;
+    }
+
+    // Y 軸刻度數字
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+
+    stepCount = 1;
+    for (let y = axisY - grid; y > 20; y -= grid) {
+        const val = Number((stepCount * unit).toPrecision(6));
+        ctx.beginPath();
+        ctx.moveTo(axisX - 4, y);
+        ctx.lineTo(axisX, y);
+        ctx.stroke();
+        ctx.fillText(val, axisX + 6, y);
+        stepCount++;
+    }
+
+    stepCount = 1;
+    for (let y = axisY + grid; y < height - 20; y += grid) {
+        const val = Number((-stepCount * unit).toPrecision(6));
+        ctx.beginPath();
+        ctx.moveTo(axisX - 4, y);
+        ctx.lineTo(axisX, y);
+        ctx.stroke();
+        ctx.fillText(val, axisX + 6, y);
+        stepCount++;
+    }
+
+    // 軸標籤與原點 0
+    ctx.fillText("0", axisX - 12, axisY + 12);
+    ctx.font = "bold 13px Arial";
+    ctx.fillText("x", width - 18, axisY - 12);
+    ctx.fillText("y", axisX + 8, 12);
 
     ctx.restore();
 
 }
+
 
 
 /* =========================================================
@@ -673,6 +744,7 @@ function drawStroke(points, color, lineWidth) {
     ctx.restore();
 
 }
+
 
 
 /* =========================================================
@@ -841,13 +913,14 @@ function updatePointCount() {
 }
 
 
+
 /* =========================================================
-   Canvas → 數學座標
+   Canvas → 數學座標 (根據每格單位動態縮放)
 =========================================================
 
    x：
        畫布中央 = 0
-       每 50px = 1
+       每 50px = unit
 
    y：
        畫布中央 = 0
@@ -857,8 +930,9 @@ function updatePointCount() {
 
 function pixelToMath(p) {
 
-    const scaleX = 50;
-    const scaleY = 50;
+    const unit = getGridUnit();
+    const scaleX = 50 / unit;
+    const scaleY = 50 / unit;
 
     // x = f(y)
     // 數學座標的 y 作為自變數，x 作為應變數
@@ -913,6 +987,7 @@ function smoothData(data, windowSize) {
     return result;
 
 }
+
 
 
 /* =========================================================
@@ -999,6 +1074,7 @@ function solveMatrix(A, b) {
     return x;
 
 }
+
 
 
 /* =========================================================
@@ -1227,10 +1303,6 @@ function powerValue(model, x) {
 
 /* =========================================================
    正弦函數
-=========================================================
-
-   使用 FFT-like 掃描尋找週期
-
 ========================================================= */
 
 function sineFit(data) {
@@ -1541,7 +1613,7 @@ function gaussianValue(model, x) {
 
 
 /* =========================================================
-   統一模型計算
+   統一模型計算與誤差度量
 ========================================================= */
 
 function modelValue(model, x) {
@@ -1574,10 +1646,6 @@ function modelValue(model, x) {
 
 }
 
-
-/* =========================================================
-   誤差計算
-========================================================= */
 
 function calculateMetrics(model, data) {
 
@@ -1654,7 +1722,7 @@ function calculateMetrics(model, data) {
 
 
 /* =========================================================
-   模型名稱
+   模型名稱與數學方程式格式化
 ========================================================= */
 
 function modelName(model) {
@@ -1685,10 +1753,6 @@ function modelName(model) {
 
 }
 
-
-/* =========================================================
-   方程式
-========================================================= */
 
 function formatNumber(x) {
 
@@ -1817,14 +1881,12 @@ function equation(model) {
 
 
 /* =========================================================
-   自動模型集合
+   自動模型生成與選擇
 ========================================================= */
 
 function generateModels(data) {
 
     const models = [];
-
-    // 多項式
 
     for (let degree = 1; degree <= 8; degree++) {
 
@@ -1882,8 +1944,9 @@ function generateModels(data) {
 }
 
 
+
 /* =========================================================
-   自動分析
+   自動分析流程
 ========================================================= */
 
 function fitCurve() {
@@ -2038,13 +2101,6 @@ function fitCurve() {
 
     }
 
-    /*
-       自動模型選擇不能只看 RMSE，
-       否則高次多項式幾乎一定容易過度擬合。
-
-       因此加入簡單的複雜度懲罰。
-    */
-
     for (const item of evaluated) {
 
         let complexity = 2;
@@ -2162,8 +2218,9 @@ function displayResults(results, best) {
 }
 
 
+
 /* =========================================================
-   Canvas 畫擬合曲線
+   Canvas 畫擬合曲線 (連動單位與轉換)
 ========================================================= */
 
 function drawFittedCurve(model) {
@@ -2178,7 +2235,10 @@ function drawFittedCurve(model) {
 
     let started = false;
 
-    // x = f(y)：沿著畫布的 y 軸方向掃描
+    const unit = getGridUnit();
+    const scale = 50 / unit;
+
+    // x = f(y)：沿著畫布的 y 軸像素方向掃描
     for (
         let py = 0;
         py <= height;
@@ -2186,7 +2246,7 @@ function drawFittedCurve(model) {
     ) {
 
         const mathY =
-            (height / 2 - py) / 50;
+            (height / 2 - py) / scale;
 
         const mathX =
             modelValue(
@@ -2204,7 +2264,7 @@ function drawFittedCurve(model) {
 
         const px =
             width / 2 +
-            mathX * 50;
+            mathX * scale;
 
         if (
             px < -100000 ||
@@ -2242,6 +2302,7 @@ function drawFittedCurve(model) {
     ctx.restore();
 
 }
+
 
 
 /* =========================================================
