@@ -1132,7 +1132,7 @@ function exponentialValue(model, x) {
 
 /* =========================================================
    對數
-   y = a ln(x) + b
+   y = a ln(y) + b
 ========================================================= */
 
 function logarithmicFit(data) {
@@ -1745,7 +1745,7 @@ function formatPolynomial(model) {
                     abs === 1
                     ? ""
                     : coefficient
-                ) + "x";
+                ) + "y";
 
         } else {
 
@@ -1755,7 +1755,7 @@ function formatPolynomial(model) {
                     ? ""
                     : coefficient
                 ) +
-                `x^${i}`;
+                `y^${i}`;
 
         }
 
